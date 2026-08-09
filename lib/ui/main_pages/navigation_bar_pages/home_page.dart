@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:project_nbt/apis/providers/auth/signin_provider.dart';
 import 'package:project_nbt/ui/components/pages/club_card.dart';
 import 'package:project_nbt/ui/components/pages/event_card.dart';
 import 'package:project_nbt/ui/components/pages/feed_post_card.dart';
@@ -7,12 +8,14 @@ import 'package:project_nbt/ui/components/pages/home_header.dart';
 import 'package:project_nbt/ui/components/pages/section_header.dart';
 import 'package:project_nbt/ui/sub_pages/clubs_details_page.dart';
 import 'package:project_nbt/ui/sub_pages/events_detail_page.dart';
+import 'package:provider/provider.dart';
 
 class HomePage extends StatelessWidget {
   const HomePage({super.key});
 
   @override
   Widget build(BuildContext context) {
+    final user = context.watch<SignInProvider>().currentUser;
     final theme = Theme.of(context).colorScheme;
     return Scaffold(
       backgroundColor: theme.surface,
@@ -23,7 +26,7 @@ class HomePage extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                HomeHeader(userName: "Maya"),
+                HomeHeader(userName: user?.displayName ?? ""),
                 const SizedBox(height: 15),
                 SectionHeader(
                   title: "Suggested Clubs",

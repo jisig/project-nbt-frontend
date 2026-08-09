@@ -6,6 +6,7 @@ class PrimaryButton extends StatelessWidget {
   final double? height;
   final double? weight;
   final Color? color;
+  final bool isLoading;
 
   const PrimaryButton({
     super.key,
@@ -13,6 +14,7 @@ class PrimaryButton extends StatelessWidget {
     this.height,
     this.weight,
     this.color,
+    this.isLoading = false,
     required this.onPressed,
   });
 
@@ -35,14 +37,23 @@ class PrimaryButton extends StatelessWidget {
           borderRadius: BorderRadius.circular(50),
         ),
         child: TextButton(
-          onPressed: onPressed,
-          child: Text(
-            text,
-            style: TextStyle(
-              color: Theme.of(context).colorScheme.surface,
-              fontSize: 18,
-            ),
-          ),
+          onPressed: isLoading ? null : onPressed,
+          child: isLoading
+              ? const SizedBox(
+                  height: 24,
+                  width: 24,
+                  child: CircularProgressIndicator(
+                    color: Colors.white,
+                    strokeWidth: 2,
+                  ),
+                )
+              : Text(
+                  text,
+                  style: TextStyle(
+                    color: Theme.of(context).colorScheme.surface,
+                    fontSize: 18,
+                  ),
+                ),
         ),
       ),
     );

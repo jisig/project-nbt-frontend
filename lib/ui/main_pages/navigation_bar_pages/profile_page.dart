@@ -1,11 +1,13 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:project_nbt/apis/providers/auth/signin_provider.dart';
 import 'package:project_nbt/ui/components/buttons/sections_buttons.dart';
 import 'package:project_nbt/ui/components/dialogs/logout_dialog.dart';
 import 'package:project_nbt/ui/sub_pages/profiles/chat_settings_page.dart';
 import 'package:project_nbt/ui/sub_pages/profiles/profile_edit_page.dart';
 import 'package:shape_of_view_null_safe/shape_of_view_null_safe.dart';
+import 'package:provider/provider.dart';
 
 class ProfilePage extends StatelessWidget {
   const ProfilePage({super.key});
@@ -15,6 +17,7 @@ class ProfilePage extends StatelessWidget {
     final theme = Theme.of(context).colorScheme;
     final height = MediaQuery.of(context).size.height;
     final weight = MediaQuery.of(context).size.width;
+    final user = context.watch<SignInProvider>().currentUser;
 
     return Scaffold(
       backgroundColor: theme.surface,
@@ -69,7 +72,7 @@ class ProfilePage extends StatelessWidget {
                       Row(
                         children: [
                           Text(
-                            "Victoria Andres",
+                            user?.displayName ?? "",
                             style: GoogleFonts.k2d(
                               fontSize: 20,
                               fontWeight: FontWeight.w500,
@@ -81,7 +84,7 @@ class ProfilePage extends StatelessWidget {
                         ],
                       ),
                       Text(
-                        "@victoria",
+                        user?.username ?? "",
                         style: GoogleFonts.k2d(color: theme.tertiary),
                       ),
                     ],
