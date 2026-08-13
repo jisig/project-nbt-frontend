@@ -237,7 +237,7 @@ class _RegistrationPageState extends State<RegistrationPage> {
                   Navigator.pushReplacement(
                     context,
                     MaterialPageRoute(
-                      builder: (context) => const CreateProfilePage(),
+                      builder: (context) => CreateProfilePage(),
                     ),
                   );
                 }

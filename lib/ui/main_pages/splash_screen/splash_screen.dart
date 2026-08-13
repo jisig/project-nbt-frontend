@@ -1,6 +1,6 @@
 // import 'dart:async';
 // import 'package:flutter/material.dart';
-// import 'package:project_nbt/apis/providers/auth/signin_provider.dart';
+// import 'package:project_nbt/apis/providers/auth/sign_in_provider.dart';
 // import 'package:provider/provider.dart';
 // import 'package:project_nbt/ui/components/custom_navigation_bar/custom_navigation_bar.dart';
 // import 'package:project_nbt/ui/main_pages/authentication/sign_in/sign_page.dart';
@@ -58,7 +58,7 @@
 import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:project_nbt/apis/providers/auth/signin_provider.dart';
+import 'package:project_nbt/apis/providers/auth/sign_in_provider.dart';
 import 'package:provider/provider.dart';
 import 'package:project_nbt/ui/components/custom_navigation_bar/custom_navigation_bar.dart';
 import 'package:project_nbt/ui/main_pages/authentication/sign_in/sign_page.dart';

@@ -1,24 +1,22 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:project_nbt/apis/providers/profile/create_profile_provider.dart';
 import 'package:project_nbt/ui/components/buttons/primary_button.dart';
 import 'package:project_nbt/ui/components/text_feild/primary_text_feild.dart';
 import 'package:project_nbt/ui/main_pages/one_time_pages/all_set_pages.dart';
+import 'package:provider/provider.dart';
+import 'package:shape_of_view_null_safe/shape_of_view_null_safe.dart';
 
 class CreateProfilePage extends StatefulWidget {
-  const CreateProfilePage({super.key});
+  CreateProfilePage({super.key});
 
   @override
   State<CreateProfilePage> createState() => _CreateProfilePageState();
 }
 
 class _CreateProfilePageState extends State<CreateProfilePage> {
-  final TextEditingController _usernameController = TextEditingController();
-  final TextEditingController _displayNameController = TextEditingController();
   final TextEditingController _interestController = TextEditingController();
-  final TextEditingController _dobController = TextEditingController();
-  final TextEditingController _cityController = TextEditingController();
-
   final FocusNode _interestFocusNode = FocusNode();
 
   final List<String> _interests = [];
@@ -28,7 +26,7 @@ class _CreateProfilePageState extends State<CreateProfilePage> {
   @override
   void initState() {
     super.initState();
-    // Initialize focus node key handler
+    // Backspace on an empty interest field removes the last chip.
     _interestFocusNode.onKeyEvent = (node, event) {
       if (event is KeyDownEvent &&
           event.logicalKey == LogicalKeyboardKey.backspace &&
@@ -39,20 +37,11 @@ class _CreateProfilePageState extends State<CreateProfilePage> {
       }
       return KeyEventResult.ignored;
     };
-
-    // Show success notification after build
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _showSuccessNotification(context);
-    });
   }
 
   @override
   void dispose() {
-    _usernameController.dispose();
-    _displayNameController.dispose();
     _interestController.dispose();
-    _dobController.dispose();
-    _cityController.dispose();
     _interestFocusNode.dispose();
     super.dispose();
   }
@@ -79,11 +68,17 @@ class _CreateProfilePageState extends State<CreateProfilePage> {
   }
 
   Future<void> _selectDate(BuildContext context) async {
+    final createProfileProvider = context.read<CreateProfileProvider>();
+    final now = DateTime.now();
+    // Must be at least 13 years old — was previously hardcoded to a fixed
+    // 2012 cutoff, which would have silently gone stale over time.
+    final minAgeDate = DateTime(now.year - 13, now.month, now.day);
+
     final DateTime? picked = await showDatePicker(
       context: context,
-      initialDate: DateTime(2012),
+      initialDate: minAgeDate,
       firstDate: DateTime(1900),
-      lastDate: DateTime(2012, 12, 31),
+      lastDate: minAgeDate,
       builder: (context, child) {
         return Theme(
           data: Theme.of(context).copyWith(
@@ -98,11 +93,16 @@ class _CreateProfilePageState extends State<CreateProfilePage> {
       },
     );
     if (picked != null) {
+      final day = picked.day.toString().padLeft(2, '0');
+      final month = picked.month.toString().padLeft(2, '0');
+      final year = picked.year.toString();
       setState(() {
-        final day = picked.day.toString().padLeft(2, '0');
-        final month = picked.month.toString().padLeft(2, '0');
-        final year = picked.year.toString();
-        _dobController.text = "$day/$month/$year";
+        // FIX: this used to write to a separate, unused `_dobController`
+        // while the visible TextField was bound to
+        // createProfileProvider.dateOfBirthController — so the picked date
+        // never showed up on screen and validation always saw an empty
+        // string. Now it writes to the same controller the field displays.
+        createProfileProvider.dateOfBirthController.text = "$day/$month/$year";
       });
     }
   }
@@ -120,7 +120,7 @@ class _CreateProfilePageState extends State<CreateProfilePage> {
         child: Material(
           color: Colors.transparent,
           child: Container(
-            padding: const EdgeInsets.all(16),
+            padding: EdgeInsets.all(16),
             decoration: BoxDecoration(
               color: Colors.white,
               borderRadius: BorderRadius.circular(24),
@@ -128,31 +128,27 @@ class _CreateProfilePageState extends State<CreateProfilePage> {
                 BoxShadow(
                   color: Colors.black.withOpacity(0.1),
                   blurRadius: 20,
-                  offset: const Offset(0, 10),
+                  offset: Offset(0, 10),
                 ),
               ],
             ),
             child: Row(
               children: [
                 Container(
-                  padding: const EdgeInsets.all(8),
+                  padding: EdgeInsets.all(8),
                   decoration: BoxDecoration(
                     color: Colors.red.withOpacity(0.1),
                     shape: BoxShape.circle,
                   ),
-                  child: const Icon(
-                    Icons.info_outline,
-                    color: Colors.red,
-                    size: 28,
-                  ),
+                  child: Icon(Icons.info_outline, color: Colors.red, size: 28),
                 ),
-                const SizedBox(width: 16),
+                SizedBox(width: 16),
                 Container(
                   width: 1,
                   height: 40,
                   color: theme.outline.withOpacity(0.3),
                 ),
-                const SizedBox(width: 16),
+                SizedBox(width: 16),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -184,41 +180,24 @@ class _CreateProfilePageState extends State<CreateProfilePage> {
     );
 
     overlayState.insert(overlayEntry);
-    Future.delayed(const Duration(seconds: 3), () {
+    Future.delayed(Duration(seconds: 3), () {
       overlayEntry?.remove();
     });
   }
 
-  bool _isGenericNumber(String text) {
-    // Only check if the text looks like a 10-digit number
-    final clean = text.replaceAll(RegExp(r'\D'), '');
-    if (clean.length != 10) return false;
+  Future<void> _validateAndProceed() async {
+    final createProfileProvider = context.read<CreateProfileProvider>();
 
-    // Check for repetitive digits (e.g., 0000000000)
-    if (RegExp(r'^(\d)\1{9}$').hasMatch(clean)) return true;
-    // Check for sequential digits
-    const sequential = "01234567890123456789";
-    const reversedSequential = "98765432109876543210";
-    if (sequential.contains(clean) || reversedSequential.contains(clean))
-      return true;
-    return false;
-  }
+    final username = createProfileProvider.userNameController.text.trim();
 
-  void _validateAndProceed() {
-    final username = _usernameController.text.trim();
-    final displayName = _displayNameController.text.trim();
+    final displayName = createProfileProvider.displayNameController.text.trim();
+
+    final dateOfBirth = createProfileProvider.dateOfBirthController.text.trim();
 
     if (username.isEmpty) {
       _showErrorNotification(
         "Profile Setup",
         "Please choose a unique username.",
-      );
-      return;
-    }
-    if (_isGenericNumber(username)) {
-      _showErrorNotification(
-        "Profile Setup",
-        "Username cannot be a generic phone number.",
       );
       return;
     }
@@ -230,26 +209,8 @@ class _CreateProfilePageState extends State<CreateProfilePage> {
       );
       return;
     }
-    if (_isGenericNumber(displayName)) {
-      _showErrorNotification(
-        "Profile Setup",
-        "Display name cannot be a generic phone number.",
-      );
-      return;
-    }
 
-    if (_interests.isEmpty) {
-      _showErrorNotification(
-        "Profile Setup",
-        "Add at least one interest or vibe.",
-      );
-      return;
-    }
-    if (_selectedPronoun == null) {
-      _showErrorNotification("Profile Setup", "Please select your pronouns.");
-      return;
-    }
-    if (_dobController.text.isEmpty) {
+    if (dateOfBirth.isEmpty) {
       _showErrorNotification(
         "Profile Setup",
         "Please enter your date of birth.",
@@ -257,10 +218,30 @@ class _CreateProfilePageState extends State<CreateProfilePage> {
       return;
     }
 
-    Navigator.push(
-      context,
-      MaterialPageRoute(builder: (context) => const AllSetPage()),
+    final success = await createProfileProvider.createProfile(
+      context: context,
+      username: username,
+      displayName: displayName,
+      fullName: 'Irfan Shaikh',
+      dateOfBirth: dateOfBirth,
     );
+
+    if (!mounted) return;
+
+    if (success) {
+      _showSuccessNotification(context);
+
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (context) => const AllSetPage()),
+      );
+    } else {
+      _showErrorNotification(
+        "Profile Creation Failed",
+        createProfileProvider.errorMessage ??
+            "Could not create profile. Please try again.",
+      );
+    }
   }
 
   void _showSuccessNotification(BuildContext context) {
@@ -276,7 +257,7 @@ class _CreateProfilePageState extends State<CreateProfilePage> {
         child: Material(
           color: Colors.transparent,
           child: Container(
-            padding: const EdgeInsets.all(16),
+            padding: EdgeInsets.all(16),
             decoration: BoxDecoration(
               color: Colors.white,
               borderRadius: BorderRadius.circular(24),
@@ -284,46 +265,46 @@ class _CreateProfilePageState extends State<CreateProfilePage> {
                 BoxShadow(
                   color: Colors.black.withOpacity(0.1),
                   blurRadius: 20,
-                  offset: const Offset(0, 10),
+                  offset: Offset(0, 10),
                 ),
               ],
             ),
             child: Row(
               children: [
                 Container(
-                  padding: const EdgeInsets.all(8),
+                  padding: EdgeInsets.all(8),
                   decoration: BoxDecoration(
-                    color: Colors.green.withOpacity(0.1),
+                    color: theme.inverseSurface.withOpacity(0.1),
                     shape: BoxShape.circle,
                   ),
-                  child: const Icon(
+                  child: Icon(
                     Icons.check_circle_outline,
-                    color: Colors.green,
+                    color: theme.inverseSurface,
                     size: 28,
                   ),
                 ),
-                const SizedBox(width: 16),
+                SizedBox(width: 16),
                 Container(
                   width: 1,
                   height: 40,
                   color: theme.outline.withOpacity(0.3),
                 ),
-                const SizedBox(width: 16),
+                SizedBox(width: 16),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       Text(
-                        "Registration Successful",
+                        "Profile Created",
                         style: GoogleFonts.k2d(
                           fontSize: 16,
                           fontWeight: FontWeight.bold,
-                          color: Colors.green,
+                          color: theme.inverseSurface,
                         ),
                       ),
                       Text(
-                        "Your account is registered successfully.",
+                        "Your profile is created successfully.",
                         style: GoogleFonts.k2d(
                           fontSize: 12,
                           color: theme.tertiary,
@@ -340,7 +321,7 @@ class _CreateProfilePageState extends State<CreateProfilePage> {
     );
 
     overlayState.insert(overlayEntry);
-    Future.delayed(const Duration(seconds: 3), () {
+    Future.delayed(Duration(seconds: 3), () {
       overlayEntry?.remove();
     });
   }
@@ -348,241 +329,309 @@ class _CreateProfilePageState extends State<CreateProfilePage> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context).colorScheme;
+    final height = MediaQuery.of(context).size.height;
 
     return Scaffold(
       backgroundColor: theme.surface,
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 24),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const SizedBox(height: 30),
-              Text(
-                "Create",
-                style: GoogleFonts.k2d(
-                  fontSize: 48,
-                  fontWeight: FontWeight.bold,
-                  color: theme.secondary,
-                  height: 1.1,
-                ),
-              ),
-              Text(
-                "Profile!",
-                style: GoogleFonts.k2d(
-                  fontSize: 48,
-                  fontWeight: FontWeight.bold,
-                  color: theme.outline,
-                  height: 1.1,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                "Set Up Your Profile for Delicious Deliveries!",
-                style: GoogleFonts.k2d(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w500,
-                  color: theme.tertiary,
-                ),
-              ),
-              const SizedBox(height: 25),
-
-              _buildLabel("Username", theme),
-              PrimaryTextField(
-                controller: _usernameController,
-                hintText: "Choose a unique username",
-              ),
-              const SizedBox(height: 20),
-
-              _buildLabel("Display Name", theme),
-              PrimaryTextField(
-                controller: _displayNameController,
-                hintText: "Enter the name that you want display",
-              ),
-              const SizedBox(height: 20),
-
-              _buildLabel("Your Interest/Vibe", theme),
-              Container(
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 8,
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    if (_interests.isNotEmpty)
+      body: SingleChildScrollView(
+        // padding: EdgeInsets.symmetric(horizontal: 24),
+        child: Consumer<CreateProfileProvider>(
+          builder: (context, createProfileProvider, child) {
+            return Column(
+              children: [
+                Container(
+                  decoration: BoxDecoration(
+                    color: theme.onInverseSurface,
+                    borderRadius: const BorderRadius.only(
+                      bottomLeft: Radius.circular(15),
+                      bottomRight: Radius.circular(15),
+                    ),
+                  ),
+                  child: Stack(
+                    children: [
+                      ShapeOfView(
+                        height: height * 0.2,
+                        width: double.infinity,
+                        elevation: 0,
+                        shape: DiagonalShape(
+                          direction: DiagonalDirection.Right,
+                        ),
+                        child: Stack(
+                          children: [
+                            const Image(
+                              image: NetworkImage(
+                                'https://api.a0.dev/assets/image?text=beautiful%20fairytale%20forest%20illustration%20with%20rainbow%20valley&aspect=16:9',
+                              ),
+                              fit: BoxFit.fill,
+                              width: double.infinity,
+                            ),
+                            Positioned(
+                              right: 15,
+                              top: 40,
+                              child: _buildOverlayIcon(Icons.photo),
+                            ),
+                          ],
+                        ),
+                      ),
                       Padding(
-                        padding: const EdgeInsets.only(bottom: 8.0),
-                        child: Wrap(
-                          spacing: 8.0,
-                          runSpacing: 4.0,
-                          children: _interests.asMap().entries.map((entry) {
-                            return Chip(
-                              label: Text(
-                                entry.value,
-                                style: GoogleFonts.k2d(
-                                  fontSize: 12,
-                                  color: theme.onSurface,
+                        padding: const EdgeInsets.only(
+                          top: 97,
+                          left: 15,
+                          bottom: 5,
+                        ),
+                        child: Stack(
+                          alignment: Alignment.center,
+                          children: [
+                            Container(
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(50),
+                                border: Border.all(
+                                  color: theme.onInverseSurface,
+                                  width: 5,
                                 ),
                               ),
-                              backgroundColor: theme.surface,
-                              deleteIcon: Icon(
-                                Icons.close,
-                                size: 16,
-                                color: theme.outline,
+                              child: const CircleAvatar(
+                                radius: 45,
+                                backgroundImage: NetworkImage(
+                                  'https://api.a0.dev/assets/image?text=cute%20pink%20bunny%20rabbit%20portrait&aspect=1:1',
+                                ),
                               ),
-                              onDeleted: () => _removeInterest(entry.key),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(20),
-                              ),
-                              padding: const EdgeInsets.all(4),
-                              labelPadding: const EdgeInsets.symmetric(
-                                horizontal: 4,
-                              ),
-                            );
-                          }).toList(),
+                            ),
+                            _buildOverlayIcon(Icons.photo),
+                          ],
                         ),
                       ),
-                    TextField(
-                      controller: _interestController,
-                      focusNode: _interestFocusNode,
-                      textInputAction: TextInputAction.done,
-                      decoration: InputDecoration(
-                        hintText: _interests.isEmpty
-                            ? "Type to add interest"
-                            : "Add more...",
-                        hintStyle: GoogleFonts.k2d(
-                          fontSize: 15,
-                          fontWeight: FontWeight.w500,
-                          color: theme.tertiary,
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 20),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 15),
+
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // SizedBox(height: 30),
+                      // Text(
+                      //   "Create",
+                      //   style: GoogleFonts.k2d(
+                      //     fontSize: 48,
+                      //     fontWeight: FontWeight.bold,
+                      //     color: theme.secondary,
+                      //     height: 1.1,
+                      //   ),
+                      // ),
+                      // Text(
+                      //   "Profile!",
+                      //   style: GoogleFonts.k2d(
+                      //     fontSize: 48,
+                      //     fontWeight: FontWeight.bold,
+                      //     color: theme.outline,
+                      //     height: 1.1,
+                      //   ),
+                      // ),
+                      // SizedBox(height: 8),
+                      // Text(
+                      //   "Tell us a bit about yourself to find your people.",
+                      //   style: GoogleFonts.k2d(
+                      //     fontSize: 15,
+                      //     fontWeight: FontWeight.w500,
+                      //     color: theme.tertiary,
+                      //   ),
+                      // ),
+                      // SizedBox(height: 25),
+                      _buildLabel("Username", theme),
+                      PrimaryTextField(
+                        controller: createProfileProvider.userNameController,
+                        hintText: "Choose a unique username",
+                      ),
+                      SizedBox(height: 20),
+
+                      _buildLabel("Display Name", theme),
+                      PrimaryTextField(
+                        controller: createProfileProvider.displayNameController,
+                        hintText: "Enter the name that you want display",
+                      ),
+                      SizedBox(height: 20),
+
+                      _buildLabel("Your Interest/Vibe", theme),
+                      Container(
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(12),
                         ),
-                        border: InputBorder.none,
-                        isDense: true,
-                        contentPadding: const EdgeInsets.symmetric(
-                          vertical: 10,
+                        padding: EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 8,
                         ),
-                        suffixIcon: IconButton(
-                          onPressed: () =>
-                              _addInterest(_interestController.text),
-                          icon: Icon(
-                            Icons.add_circle_outline_rounded,
-                            color: theme.primary,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            if (_interests.isNotEmpty)
+                              Padding(
+                                padding: EdgeInsets.only(bottom: 8.0),
+                                child: Wrap(
+                                  spacing: 8.0,
+                                  runSpacing: 4.0,
+                                  children: _interests.asMap().entries.map((
+                                    entry,
+                                  ) {
+                                    return Chip(
+                                      label: Text(
+                                        entry.value,
+                                        style: GoogleFonts.k2d(
+                                          fontSize: 12,
+                                          color: theme.onSurface,
+                                        ),
+                                      ),
+                                      backgroundColor: theme.surface,
+                                      deleteIcon: Icon(
+                                        Icons.close,
+                                        size: 16,
+                                        color: theme.outline,
+                                      ),
+                                      onDeleted: () =>
+                                          _removeInterest(entry.key),
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(20),
+                                      ),
+                                      padding: EdgeInsets.all(4),
+                                      labelPadding: EdgeInsets.symmetric(
+                                        horizontal: 4,
+                                      ),
+                                    );
+                                  }).toList(),
+                                ),
+                              ),
+                            TextField(
+                              controller: _interestController,
+                              focusNode: _interestFocusNode,
+                              textInputAction: TextInputAction.done,
+                              decoration: InputDecoration(
+                                hintText: _interests.isEmpty
+                                    ? "Type to add interest"
+                                    : "Add more...",
+                                hintStyle: GoogleFonts.k2d(
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.w500,
+                                  color: theme.tertiary,
+                                ),
+                                border: InputBorder.none,
+                                isDense: true,
+                                contentPadding: EdgeInsets.symmetric(
+                                  vertical: 10,
+                                ),
+                                suffixIcon: IconButton(
+                                  onPressed: () =>
+                                      _addInterest(_interestController.text),
+                                  icon: Icon(
+                                    Icons.add_circle_outline_rounded,
+                                    color: theme.primary,
+                                  ),
+                                  padding: EdgeInsets.zero,
+                                  // splashRadius:   Box raints(),
+                                ),
+                              ),
+                              style: GoogleFonts.k2d(
+                                fontWeight: FontWeight.w500,
+                                color: theme.onSurface,
+                              ),
+                              onSubmitted: _addInterest,
+                            ),
+                          ],
+                        ),
+                      ),
+                      SizedBox(height: 20),
+
+                      _buildLabel("Pronouns", theme),
+                      DropdownButtonFormField<String>(
+                        value: _selectedPronoun,
+                        hint: Text(
+                          "Choose pronouns",
+                          style: GoogleFonts.k2d(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w500,
+                            color: theme.tertiary,
                           ),
-                          padding: EdgeInsets.zero,
-                          constraints: const BoxConstraints(),
                         ),
+                        icon: Icon(Icons.arrow_drop_down, color: theme.outline),
+                        decoration: InputDecoration(
+                          filled: true,
+                          fillColor: Colors.white,
+                          contentPadding: EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 18,
+                          ),
+                          focusedBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: BorderSide.none,
+                          ),
+                          enabledBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: BorderSide.none,
+                          ),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: BorderSide.none,
+                          ),
+                        ),
+                        style: GoogleFonts.k2d(
+                          fontWeight: FontWeight.w500,
+                          color: theme.onSurface,
+                        ),
+                        items: _pronouns.map((String pronoun) {
+                          return DropdownMenuItem<String>(
+                            value: pronoun,
+                            child: Text(pronoun),
+                          );
+                        }).toList(),
+                        onChanged: (String? newValue) {
+                          setState(() {
+                            _selectedPronoun = newValue;
+                          });
+                        },
                       ),
-                      style: GoogleFonts.k2d(
-                        fontWeight: FontWeight.w500,
-                        color: theme.onSurface,
+                      SizedBox(height: 20),
+
+                      _buildLabel("Date of Birth", theme),
+                      PrimaryTextField(
+                        controller: createProfileProvider.dateOfBirthController,
+                        hintText: "DD/MM/YYYY",
+                        readOnly: true,
+                        onTap: () => _selectDate(context),
                       ),
-                      onSubmitted: _addInterest,
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 20),
+                      SizedBox(height: 20),
 
-              _buildLabel("Pronouns", theme),
-              DropdownButtonFormField<String>(
-                value: _selectedPronoun,
-                hint: Text(
-                  "Choose pronouns",
-                  style: GoogleFonts.k2d(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w500,
-                    color: theme.tertiary,
+                      PrimaryButton(
+                        text: "Create Profile",
+                        onPressed: _validateAndProceed,
+                      ),
+                      SizedBox(height: 40),
+                    ],
                   ),
                 ),
-                icon: Icon(Icons.arrow_drop_down, color: theme.outline),
-                decoration: InputDecoration(
-                  filled: true,
-                  fillColor: Colors.white,
-                  contentPadding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 18,
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide.none,
-                  ),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide.none,
-                  ),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide.none,
-                  ),
-                ),
-                style: GoogleFonts.k2d(
-                  fontWeight: FontWeight.w500,
-                  color: theme.onSurface,
-                ),
-                items: _pronouns.map((String pronoun) {
-                  return DropdownMenuItem<String>(
-                    value: pronoun,
-                    child: Text(pronoun),
-                  );
-                }).toList(),
-                onChanged: (String? newValue) {
-                  setState(() {
-                    _selectedPronoun = newValue;
-                  });
-                },
-              ),
-              const SizedBox(height: 20),
-
-              _buildLabel("Date of Birth", theme),
-              PrimaryTextField(
-                controller: _dobController,
-                hintText: "DD/MM/YYYY",
-                readOnly: true,
-                onTap: () => _selectDate(context),
-              ),
-              const SizedBox(height: 20),
-
-              // SizedBox(
-              //   width: double.infinity,
-              //   height: 56,
-              //   child: ElevatedButton(
-              //     onPressed: _validateAndProceed,
-              //     style: ElevatedButton.styleFrom(
-              //       backgroundColor: theme.primary,
-              //       foregroundColor: theme.onPrimary,
-              //       elevation: 0,
-              //       shape: RoundedRectangleBorder(
-              //         borderRadius: BorderRadius.circular(30),
-              //       ),
-              //     ),
-              //     child: Text(
-              //       "Create Profile",
-              //       style: GoogleFonts.k2d(
-              //         fontSize: 18,
-              //         fontWeight: FontWeight.w600,
-              //       ),
-              //     ),
-              //   ),
-              // ),
-              PrimaryButton(
-                text: "Create Profile",
-                onPressed: _validateAndProceed,
-              ),
-              const SizedBox(height: 40),
-            ],
-          ),
+              ],
+            );
+          },
         ),
       ),
     );
   }
 
+  Widget _buildOverlayIcon(IconData icon) {
+    return Container(
+      padding: const EdgeInsets.all(4),
+      decoration: BoxDecoration(
+        color: Colors.black.withOpacity(0.3),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Icon(icon, color: Colors.white, size: 20),
+    );
+  }
+
   Widget _buildLabel(String text, ColorScheme theme) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
+      padding: EdgeInsets.only(bottom: 8),
       child: Text(
         text,
         style: GoogleFonts.k2d(

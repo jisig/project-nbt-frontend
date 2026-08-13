@@ -6,7 +6,7 @@ import 'package:project_nbt/ui/main_pages/navigation_bar_pages/circles_page.dart
 import 'package:project_nbt/ui/main_pages/navigation_bar_pages/home_page.dart';
 import 'package:project_nbt/ui/main_pages/navigation_bar_pages/memories_page.dart';
 import 'package:project_nbt/ui/main_pages/navigation_bar_pages/profile_page.dart';
-import 'package:project_nbt/ui/sub_pages/events_creation_form.dart';
+import 'package:project_nbt/ui/sub_pages/events/event_creation_page.dart';
 
 import '../buttons/tertiary_button.dart';
 
@@ -129,7 +129,7 @@ class _CustomNavigationBarState extends State<CustomNavigationBar> {
       bottomNavigationBar: Container(
         padding: const EdgeInsets.symmetric(vertical: 20),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: theme.surface,
           border: Border(top: BorderSide(color: Colors.grey[200]!)),
         ),
         child: Row(
@@ -147,15 +147,17 @@ class _CustomNavigationBarState extends State<CustomNavigationBar> {
 
   Widget _buildNavItem(IconData icon, String label, int index) {
     bool isSelected = _selectedIndex == index;
+    final theme = Theme.of(context).colorScheme;
+
     return GestureDetector(
       onTap: () {
         setState(() => _selectedIndex = index);
       },
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         decoration: isSelected
             ? BoxDecoration(
-                color: const Color(0xFFE2E8F0),
+                color: theme.onInverseSurface,
                 borderRadius: BorderRadius.circular(20),
               )
             : null,

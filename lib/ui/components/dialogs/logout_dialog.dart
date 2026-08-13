@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:project_nbt/apis/providers/auth/signin_provider.dart';
+import 'package:project_nbt/apis/providers/auth/sign_in_provider.dart';
 import 'package:project_nbt/ui/main_pages/authentication/sign_in/sign_page.dart';
 import 'package:provider/provider.dart';
 

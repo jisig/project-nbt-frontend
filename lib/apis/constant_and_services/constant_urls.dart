@@ -11,4 +11,6 @@ class ApiConstant {
       '/api/auth/verify-forgot-password-otp';
   static const setNewPasswordForgotPassword = '/api/auth/reset-password';
   static const refresh = 'api/auth/refresh-token';
+  static const createProfile = '/api/users/create-profile';
+  static const createEvent = '/api/events';
 }

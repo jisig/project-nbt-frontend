@@ -1,19 +1,17 @@
 import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl_phone_field/country_picker_dialog.dart';
 import 'package:intl_phone_field/intl_phone_field.dart';
-import 'package:project_nbt/apis/providers/auth/signin_provider.dart';
+import 'package:project_nbt/apis/providers/auth/sign_in_provider.dart';
 import 'package:project_nbt/ui/components/bottom_sheets/otp_bottom_sheet.dart';
 import 'package:project_nbt/ui/components/buttons/primary_button.dart';
 import 'package:project_nbt/ui/components/text_feild/primary_text_feild.dart';
+import 'package:project_nbt/ui/main_pages/authentication/forgot_password/forgot_password_page.dart';
 import 'package:project_nbt/ui/main_pages/authentication/registration/registration_page.dart';
 import 'package:project_nbt/ui/components/custom_navigation_bar/custom_navigation_bar.dart';
 import 'package:provider/provider.dart';
-
-import '../forgot_password/forgot_password_page.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -26,12 +24,6 @@ class _LoginPageState extends State<LoginPage> {
   bool _obscurePassword = true;
   String _countryCode = "+91";
 
-  final TextEditingController _mobileController = TextEditingController();
-  final TextEditingController _passwordController = TextEditingController();
-  final TextEditingController _otpController = TextEditingController();
-
-  Timer? _timer;
-  int _start = 60;
   late final signInProvider = context.read<SignInProvider>();
 
   @override
@@ -221,30 +213,6 @@ class _LoginPageState extends State<LoginPage> {
             },
           );
         },
-        // child: OtpBottomSheet(
-        //   mobileNumber: mobile,
-        //   countryCode: _countryCode,
-        //   onResend: () async {
-        //     // Logic for resending OTP
-        //     return true;
-        //   },
-        //   onVerify: (pin) {
-        //     if (pin == "1234") {
-        //       Navigator.pop(context);
-        //       Navigator.push(
-        //         context,
-        //         MaterialPageRoute(
-        //           builder: (context) => const CustomNavigationBar(),
-        //         ),
-        //       );
-        //     } else {
-        //       _showErrorNotification(
-        //         "Oops, Wrong Code",
-        //         "That code ain't it. Try again!",
-        //       );
-        //     }
-        //   },
-        // ),
       ),
     );
   }
